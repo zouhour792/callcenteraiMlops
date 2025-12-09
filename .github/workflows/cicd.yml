@@ -53,8 +53,9 @@ jobs:
       # ----------------------------------------
       # 6) Security check
       # ----------------------------------------
-      - name: 🛡️ pip-audit (security audit)
-        run: pip-audit --exit-code 0
+      - name: 🛡️ Run pip-audit
+        run: |
+          pip-audit --progress-spinner off
 
       # ----------------------------------------
       # 7) Export Hugging Face token (from GitHub secrets)
