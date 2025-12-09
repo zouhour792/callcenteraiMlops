@@ -23,10 +23,10 @@ from dotenv import load_dotenv
 # ============================================================
 
 load_dotenv()
-***REMOVED*** = os.getenv("***REMOVED***")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-if ***REMOVED***:
-    login(token=***REMOVED***)
+if HF_TOKEN:
+    login(token=HF_TOKEN)
 else:
     print("⚠️ Aucun token HuggingFace — push désactivé.")
 
@@ -59,16 +59,14 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 train_df = pd.read_csv(TRAIN_PATH)
 test_df = pd.read_csv(TEST_PATH)
 
-# Vérification obligatoire du nom des colonnes
 print("📌 Colonnes du dataset :", train_df.columns.tolist())
 
 if "Document" not in train_df.columns:
-    raise ValueError("❌ La colonne 'Document' n'existe pas dans le CSV. Vérifie le nom !")
+    raise ValueError("❌ La colonne 'Document' n'existe pas dans le CSV.")
 
 if "Topic_group" not in train_df.columns:
-    raise ValueError("❌ La colonne 'Topic_group' n'existe pas dans le CSV. Vérifie le nom !")
+    raise ValueError("❌ La colonne 'Topic_group' n'existe pas dans le CSV.")
 
-# Équilibrage des classes
 min_samples = train_df["Topic_group"].value_counts().min()
 
 train_df = (
@@ -113,7 +111,6 @@ def encode_label(example):
 train_ds = train_ds.map(encode_label)
 test_ds = test_ds.map(encode_label)
 
-# Sauvegarde
 joblib.dump(label2id, os.path.join(MODEL_DIR, "label_encoder.joblib"))
 
 
@@ -153,7 +150,7 @@ mlflow.set_experiment("transformer_multilang_v2")
 
 
 # ============================================================
-# 10. TRAINING ARGUMENTS (compatible Transformers 4.57+)
+# 10. TRAINING ARGUMENTS
 # ============================================================
 
 training_args = TrainingArguments(
@@ -163,15 +160,10 @@ training_args = TrainingArguments(
     per_device_eval_batch_size=16,
     learning_rate=3e-5,
     weight_decay=0.01,
-
     logging_steps=50,
-
-    # On enlève evaluation_strategy et save_strategy – ta version ne le supporte pas
-    load_best_model_at_end=False,   # désactivé car dépend du save_strategy
-
+    load_best_model_at_end=False,
     push_to_hub=False,
 )
-
 
 
 # ============================================================
@@ -208,7 +200,7 @@ with mlflow.start_run():
 # 12. PUSH HUGGINGFACE
 # ============================================================
 
-if ***REMOVED***:
+if HF_TOKEN:
     print("☁️ Upload HuggingFace…")
     model.push_to_hub(HF_REPO_NAME)
     tokenizer.push_to_hub(HF_REPO_NAME)
