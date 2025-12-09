@@ -2,24 +2,25 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copier uniquement le dossier API
 COPY api/api_transformer ./api_transformer
 
-# Installer Torch CPU (beaucoup plus léger)
+# Installer Torch CPU SEULEMENT
+RUN pip install --no-cache-dir \
+    "torch==2.1.2+cpu" \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Installer le reste normalement
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
-    "torch==2.1.2+cpu" --index-url https://download.pytorch.org/whl/cpu \
     transformers \
     joblib \
     prometheus_client \
     huggingface_hub
 
-# Variables d'environnement
 ENV HF_MODEL_ID="zouhour792/callcenterai_mopls"
 ENV TRANSFORMER_MODEL_DIR="/app/model"
 
-# Télécharger le modèle puis lancer l'API
 CMD ["bash", "-c", "\
 python - << 'EOF' \
 from huggingface_hub import snapshot_download; \
