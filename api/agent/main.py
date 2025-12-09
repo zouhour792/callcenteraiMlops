@@ -1,16 +1,53 @@
+import os
+import requests
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from langdetect import detect
-import requests
+from fastapi.middleware.cors import CORSMiddleware
+
+# =============================================================
+# 📌 CONFIGURATION FASTAPI + CORS
+# =============================================================
 
 app = FastAPI(title="Smart Agent Service")
 
-TFIDF_URL = "http://localhost:8001/predict"
-TRANSFORMER_URL = "http://localhost:8002/predict"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # autoriser toutes les origines
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# =============================================================
+# 📌 SERVIR L’INTERFACE HTML / CSS
+# =============================================================
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/")
+def root():
+    """Affiche ton interface index.html"""
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+# =============================================================
+# 📌 CONFIG SERVICES IA
+# =============================================================
+
+TFIDF_URL = os.getenv("TFIDF_URL", "http://localhost:8001/predict")
+TRANSFORMER_URL = os.getenv("TRANSFORMER_URL", "http://localhost:8002/predict")
 
 class Ticket(BaseModel):
     text: str
 
+# =============================================================
+# 📌 DETECTION DE LANGUE
+# =============================================================
 
 def detect_language(text: str) -> str:
     try:
@@ -18,6 +55,9 @@ def detect_language(text: str) -> str:
     except:
         return "unknown"
 
+# =============================================================
+# 📌 SMART ROUTER (AGENT IA)
+# =============================================================
 
 @app.post("/predict")
 def smart_predict(ticket: Ticket):
@@ -25,60 +65,56 @@ def smart_predict(ticket: Ticket):
     text = ticket.text
     lang = detect_language(text)
 
-    # ==============================
-    # 1️⃣ SI FRANÇAIS → Transformer
-    # ==============================
+    print(f"🌍 Texte détecté: {lang}")
+
+    # 🌐 1) Français → Transformer
     if lang == "fr":
         try:
             response = requests.post(TRANSFORMER_URL, json={"text": text})
             return {
                 "language": "fr",
-                "model_used": "transformer",
-                "result": response.json()
+                "model": "transformer",
+                "label": response.json().get("label"),
+                "confidence": response.json().get("confidence")
             }
         except:
-            return {"error": "Transformer service unavailable"}
+            return {"error": "❌ Transformer service unavailable"}
 
-    # ==============================
-    # 2️⃣ SI ANGLAIS → On teste TF-IDF
-    # ==============================
+    # 🇬🇧 2) Anglais → TF-IDF d'abord
     if lang == "en":
-        # On essaie TF-IDF
         try:
             response = requests.post(TFIDF_URL, json={"text": text})
             tfidf_result = response.json()
 
-            # Si TF-IDF renvoie une réponse correcte :
             if "label" in tfidf_result:
                 return {
                     "language": "en",
-                    "model_used": "tfidf",
-                    "result": tfidf_result
+                    "model": "tfidf",
+                    "label": tfidf_result["label"],
+                    "confidence": tfidf_result["confidence"],
                 }
-
         except:
-            pass  # Si TF-IDF échoue → fallback Transformer
+            pass  # fallback Transformer
 
-        # Fallback Transformer
         try:
             response = requests.post(TRANSFORMER_URL, json={"text": text})
             return {
                 "language": "en",
-                "model_used": "transformer (fallback)",
-                "result": response.json()
+                "model": "transformer_fallback",
+                "label": response.json().get("label"),
+                "confidence": response.json().get("confidence"),
             }
         except:
-            return {"error": "Both models unavailable"}
+            return {"error": "❌ Both models unavailable"}
 
-    # ====================================
-    # 3️⃣ AUTRES LANGUES → Transformer seul
-    # ====================================
+    # 🌏 3) Autres langues → Transformer
     try:
         response = requests.post(TRANSFORMER_URL, json={"text": text})
         return {
             "language": lang,
-            "model_used": "transformer",
-            "result": response.json()
+            "model": "transformer",
+            "label": response.json().get("label"),
+            "confidence": response.json().get("confidence"),
         }
     except:
-        return {"error": "Transformer unavailable"}
+        return {"error": "❌ Transformer unavailable"}
