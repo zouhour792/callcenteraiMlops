@@ -1,0 +1,22 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python scripts/prepare_data.py
+    deps:
+    - path: data/raw/all_tickets_processed_improved_v3.csv
+      hash: md5
+      md5: a05aa13d753884547cc46e6f525bfb82
+      size: 14568920
+    - path: scripts/prepare_data.py
+      hash: md5
+      md5: d198d8a70f7237803414c3e28bf54c21
+      size: 451
+    outs:
+    - path: data/processed/tickets_test.csv
+      hash: md5
+      md5: 1d1e24c3090bd4f30a1f87275f948e73
+      size: 2936053
+    - path: data/processed/tickets_train.csv
+      hash: md5
+      md5: 2a3039965969e6d72c2aa8c729357863
+      size: 11632889

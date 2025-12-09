@@ -1,0 +1,218 @@
+import os
+import pandas as pd
+import numpy as np
+import torch
+from datasets import Dataset
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification,
+    TrainingArguments,
+    Trainer,
+    DataCollatorWithPadding,
+)
+from sklearn.metrics import accuracy_score, f1_score
+import mlflow
+import joblib
+
+from huggingface_hub import login
+from dotenv import load_dotenv
+
+
+# ============================================================
+# 1. ENV TOKEN
+# ============================================================
+
+load_dotenv()
+***REMOVED*** = os.getenv("***REMOVED***")
+
+if ***REMOVED***:
+    login(token=***REMOVED***)
+else:
+    print("⚠️ Aucun token HuggingFace — push désactivé.")
+
+
+# ============================================================
+# 2. GPU AUTOMATIQUE
+# ============================================================
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print("🚀 Device utilisé :", device)
+
+
+# ============================================================
+# 3. PATHS & CONFIG
+# ============================================================
+
+TRAIN_PATH = "data/processed/tickets_train.csv"
+TEST_PATH = "data/processed/tickets_test.csv"
+MODEL_NAME = "distilbert-base-multilingual-cased"
+MODEL_DIR = "models/transformer"
+HF_REPO_NAME = "callcenterai_mopls"
+
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+
+# ============================================================
+# 4. CHARGEMENT & NETTOYAGE
+# ============================================================
+
+train_df = pd.read_csv(TRAIN_PATH)
+test_df = pd.read_csv(TEST_PATH)
+
+# Vérification obligatoire du nom des colonnes
+print("📌 Colonnes du dataset :", train_df.columns.tolist())
+
+if "Document" not in train_df.columns:
+    raise ValueError("❌ La colonne 'Document' n'existe pas dans le CSV. Vérifie le nom !")
+
+if "Topic_group" not in train_df.columns:
+    raise ValueError("❌ La colonne 'Topic_group' n'existe pas dans le CSV. Vérifie le nom !")
+
+# Équilibrage des classes
+min_samples = train_df["Topic_group"].value_counts().min()
+
+train_df = (
+    train_df.groupby("Topic_group")
+    .apply(lambda x: x.sample(min_samples, replace=True, random_state=42))
+    .reset_index(drop=True)
+)
+
+train_ds = Dataset.from_pandas(train_df)
+test_ds = Dataset.from_pandas(test_df)
+
+
+# ============================================================
+# 5. TOKENIZER + PREPROCESS
+# ============================================================
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+def preprocess(batch):
+    return tokenizer(
+        batch["Document"],
+        truncation=True,
+        padding=False,
+        max_length=128
+    )
+
+train_ds = train_ds.map(preprocess, batched=True)
+test_ds = test_ds.map(preprocess, batched=True)
+
+
+# ============================================================
+# 6. LABEL ENCODING
+# ============================================================
+
+labels = sorted(train_df["Topic_group"].unique())
+label2id = {lab: i for i, lab in enumerate(labels)}
+id2label = {i: lab for lab, i in label2id.items()}
+
+def encode_label(example):
+    return {"labels": label2id[example["Topic_group"]]}
+
+train_ds = train_ds.map(encode_label)
+test_ds = test_ds.map(encode_label)
+
+# Sauvegarde
+joblib.dump(label2id, os.path.join(MODEL_DIR, "label_encoder.joblib"))
+
+
+# ============================================================
+# 7. MODEL
+# ============================================================
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    MODEL_NAME,
+    num_labels=len(labels),
+    id2label=id2label,
+    label2id=label2id
+)
+
+data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+
+# ============================================================
+# 8. METRIQUES
+# ============================================================
+
+def compute_metrics(pred):
+    logits, labels = pred
+    preds = np.argmax(logits, axis=1)
+
+    return {
+        "accuracy": accuracy_score(labels, preds),
+        "f1_macro": f1_score(labels, preds, average="macro"),
+    }
+
+
+# ============================================================
+# 9. MLFLOW
+# ============================================================
+
+mlflow.set_experiment("transformer_multilang_v2")
+
+
+# ============================================================
+# 10. TRAINING ARGUMENTS (compatible Transformers 4.57+)
+# ============================================================
+
+training_args = TrainingArguments(
+    output_dir=MODEL_DIR,
+    num_train_epochs=2,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    learning_rate=3e-5,
+    weight_decay=0.01,
+
+    logging_steps=50,
+
+    # On enlève evaluation_strategy et save_strategy – ta version ne le supporte pas
+    load_best_model_at_end=False,   # désactivé car dépend du save_strategy
+
+    push_to_hub=False,
+)
+
+
+
+# ============================================================
+# 11. TRAINER
+# ============================================================
+
+with mlflow.start_run():
+    mlflow.log_param("model_name", MODEL_NAME)
+    mlflow.log_param("num_labels", len(labels))
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_ds,
+        eval_dataset=test_ds,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics
+    )
+
+    trainer.train()
+
+    results = trainer.evaluate()
+    print("📊 Résultats :", results)
+    mlflow.log_metrics(results)
+
+    trainer.save_model(MODEL_DIR)
+    tokenizer.save_pretrained(MODEL_DIR)
+
+    mlflow.log_artifacts(MODEL_DIR, artifact_path="transformer_model")
+
+
+# ============================================================
+# 12. PUSH HUGGINGFACE
+# ============================================================
+
+if ***REMOVED***:
+    print("☁️ Upload HuggingFace…")
+    model.push_to_hub(HF_REPO_NAME)
+    tokenizer.push_to_hub(HF_REPO_NAME)
+else:
+    print("⚠️ Aucun token — push ignoré.")
+
+print("🏁 Script terminé avec succès !")

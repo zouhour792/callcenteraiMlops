@@ -1,0 +1,10 @@
+scikit-learn
+pandas
+mlflow
+joblib
+torch
+transformers
+torch
+prometheus_client
+datasets
+

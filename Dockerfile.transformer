@@ -1,0 +1,18 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY api/api_transformer ./api_transformer
+
+RUN pip install --no-cache-dir fastapi uvicorn torch transformers joblib prometheus_client huggingface_hub
+
+ENV HF_MODEL_ID="zouhour792/callcenterai_mopls"
+ENV TRANSFORMER_MODEL_DIR="/app/model"
+
+# Télécharger le modèle au démarrage
+CMD ["bash", "-c", "\
+    python - << 'EOF' \
+from huggingface_hub import snapshot_download; \
+snapshot_download(repo_id='zouhour792/callcenterai_mopls', local_dir='/app/model'); \
+EOF && \
+uvicorn api_transformer.main:app --host 0.0.0.0 --port 8002"]
