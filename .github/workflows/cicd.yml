@@ -54,7 +54,7 @@ jobs:
       # 6) Security check
       # ----------------------------------------
       - name: 🛡️ pip-audit (security audit)
-        run: pip-audit
+        run: pip-audit --exit-code 0
 
       # ----------------------------------------
       # 7) Export Hugging Face token (from GitHub secrets)

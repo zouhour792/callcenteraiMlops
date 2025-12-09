@@ -1,0 +1,22 @@
+artifact_path: file:///C:/Users/Predator/callcenteraiii_mlops/mlruns/1/models/m-82d1b4faa37d47d6945e933da1995c76/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.10.0
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+mlflow_version: 3.7.0
+model_id: m-82d1b4faa37d47d6945e933da1995c76
+model_size_bytes: 16004606
+model_uuid: m-82d1b4faa37d47d6945e933da1995c76
+prompts: null
+run_id: 2735c83f75d54a8ba7143b84af1dd30c
+utc_time_created: '2025-12-08 22:00:30.159668'
