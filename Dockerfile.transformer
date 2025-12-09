@@ -4,10 +4,10 @@ WORKDIR /app
 
 COPY api/api_transformer ./api_transformer
 
-# Installer Torch CPU SEULEMENT
+# Installer Torch CPU sans casser pip
 RUN pip install --no-cache-dir \
-    "torch==2.1.2+cpu" \
-    --index-url https://download.pytorch.org/whl/cpu
+    torch==2.1.2+cpu \
+    --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Installer le reste normalement
 RUN pip install --no-cache-dir \
