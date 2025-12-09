@@ -67,5 +67,5 @@ with mlflow.start_run():
     # MLflow Registry
     mlflow.sklearn.log_model(clf, "tfidf_model")
 
-print("🎉 Modèle TF-IDF + SVM entraîné et sauvegardé   !")
+print("🎉 Modèle TF-IDF + SVM entraîné et sauvegardé !")
 print("👉 Fichiers générés dans models/tfidf/")
