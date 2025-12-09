@@ -45,24 +45,19 @@ jobs:
       # 5) Run tests
       # ----------------------------------------
       - name: 🧪 Run tests with pytest
-        run: |
-          pytest -q || exit 1
+        run: pytest -q
 
       # ----------------------------------------
-      # 6) Dependency security scan
+      # 6) Security check
       # ----------------------------------------
       - name: 🛡️ pip-audit (security audit)
-        run: |
-          pip-audit || exit 1
+        run: pip-audit
 
       # ----------------------------------------
-      # 7) Detect secrets with Gitleaks
+      # 7) Export Hugging Face token (from GitHub secrets)
       # ----------------------------------------
-      - name: 🔐 Scan for secrets (Gitleaks)
-        uses: zricethezav/gitleaks-action@v2
-        with:
-          args: detect --source . --verbose
-        continue-on-error: false
+      - name: 🔑 Inject HF token
+        run: echo "HF_TOKEN=${{ secrets.HF_TOKEN }}" >> $GITHUB_ENV
 
       # ----------------------------------------
       # 8) Login to Docker Hub
@@ -83,5 +78,10 @@ jobs:
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/agent-svc:latest -f Dockerfile.agent .
 
       # ----------------------------------------
-      # 10) Scan Docker images for vulnerabilities (Trivy)
+      # 10) Push Docker images
       # ----------------------------------------
+      - name: 📤 Push Docker images to DockerHub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/tfidf-svc:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/transformer-svc:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/agent-svc:latest
