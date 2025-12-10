@@ -12,9 +12,9 @@ from fastapi.responses import Response
 
 MODEL_DIR = "models/tfidf"
 
-vectorizer = joblib.load(f"{MODEL_DIR}/vectorizer.joblib")
-model = joblib.load(f"{MODEL_DIR}/model.joblib")
-label_encoder = joblib.load(f"{MODEL_DIR}/label_encoder.joblib")
+vectorizer = joblib.load("/app/model/vectorizer.joblib")
+classifier = joblib.load("/app/model/classifier.joblib")
+label_encoder = joblib.load("/app/model/label_encoder.joblib")
 
 id2label = {i: lab for i, lab in enumerate(label_encoder.classes_)}
 

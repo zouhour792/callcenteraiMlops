@@ -5,7 +5,19 @@ WORKDIR /app
 COPY api/api_tfidf ./api_tfidf
 COPY models/tfidf ./model
 
-RUN pip install --no-cache-dir fastapi uvicorn scikit-learn joblib prometheus_client
+# ÉTAPE 1 : Installer torch
+RUN pip install --no-cache-dir --default-timeout=100 \
+    torch==2.1.2+cpu \
+    --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ÉTAPE 2 : Installer le reste - NOTEZ LES GUILLEMETS AUTOUR DE numpy<2
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    scikit-learn \
+    joblib \
+    prometheus_client \
+    "numpy<2"  # ← GUILLEMETS IMPORTANTS
 
 EXPOSE 8001
 

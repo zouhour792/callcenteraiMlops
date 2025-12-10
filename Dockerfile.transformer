@@ -4,16 +4,19 @@ WORKDIR /app
 
 COPY api/api_transformer ./api_transformer
 
-# Installer Torch CPU sans casser pip
-RUN pip install --no-cache-dir \
+# Étape 1 : Installer numpy version EXACTE sans miroir
+RUN pip install --no-cache-dir --default-timeout=300 numpy==1.26.4
+
+# Étape 2 : Installer torch
+RUN pip install --no-cache-dir --default-timeout=100 \
     torch==2.1.2+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Installer le reste normalement
-RUN pip install --no-cache-dir \
+# Étape 3 : Installer le reste
+RUN pip install --no-cache-dir --default-timeout=100 \
     fastapi \
     uvicorn \
-    transformers \
+    transformers==4.35.0 \
     joblib \
     prometheus_client \
     huggingface_hub
@@ -21,9 +24,6 @@ RUN pip install --no-cache-dir \
 ENV HF_MODEL_ID="zouhour792/callcenterai_mopls"
 ENV TRANSFORMER_MODEL_DIR="/app/model"
 
-CMD ["bash", "-c", "\
-python - << 'EOF' \
-from huggingface_hub import snapshot_download; \
-snapshot_download(repo_id='zouhour792/callcenterai_mopls', local_dir='/app/model'); \
-EOF && \
-uvicorn api_transformer.main:app --host 0.0.0.0 --port 8002"]
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='$HF_MODEL_ID', local_dir='$TRANSFORMER_MODEL_DIR')"
+
+CMD ["uvicorn", "api_transformer.main:app", "--host", "0.0.0.0", "--port", "8002"]

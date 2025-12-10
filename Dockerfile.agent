@@ -4,7 +4,14 @@ WORKDIR /app
 
 COPY api/agent ./api_agent
 
-RUN pip install --no-cache-dir fastapi uvicorn httpx langdetect prometheus_client
+# Installer requests qui manque
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    httpx \
+    langdetect \
+    prometheus_client \
+    requests  
 
 EXPOSE 8000
 
